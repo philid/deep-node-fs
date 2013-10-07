@@ -4,7 +4,6 @@ if(typeof define !== 'function')
 define(["require","./fs"],function (require)
 {
 	var deep = require("deep/deep");
-	var fs = require("fs");
 	deep.store.node = deep.store.node || {};
 	deep.store.node.fs = deep.store.node.fs || {};
 	deep.store.node.fs.JSON = deep.compose.Classes(deep.store.node.fs.FS,
@@ -18,6 +17,7 @@ define(["require","./fs"],function (require)
 		responseParser:function(datas){
 			if(datas instanceof Buffer)
 				datas = datas.toString("utf8");
+			//console.log("deep-node-fs/json : datas loaded : ", datas)
 			return JSON.parse(datas);
 		},
 		post:deep.compose.around(function(old){
@@ -77,8 +77,12 @@ define(["require","./fs"],function (require)
 				}
 				return old.call(this, content, opt);
 			}
-		})
+		}),
+		
 	});
+	deep.store.node.fs.JSON.createDefault = function(){
+		new deep.store.node.fs.JSON("json", deep.globals.rootPath, null, { watch:true });
+	}
 	return deep.store.node.fs.JSON;
 
 });

@@ -36,10 +36,15 @@ define(["require"],function (require)
 		},
 		get : function (path, opt) {
 			var options = this.options;
+			//console.log("node-fs/fs : get : opt ", opt);
+			//console.log("node-fs/fs : get : options : ", options);
 			if(opt)
 				options = deep.utils.bottom(this.options, opt);
+			//console.log("node-fs/fs : get : options : ", options);
+
 			path = options.rootPath+path;
 			var cacheName = this.cachePath+path;
+			//console.log("node-fs/fs : get : ", path, cacheName, deep.mediaCache.cache[cacheName])
 			if(options.cache !== false && deep.mediaCache.cache[cacheName])
 				return deep.mediaCache.cache[cacheName];
 			var def = deep.Deferred(),
@@ -47,19 +52,22 @@ define(["require"],function (require)
 			fs.readFile(path, function(err, datas){
 				if(err)
 					return def.reject(err);
-				def.resolve(self.responseParser(datas));
+				deep.when(self.responseParser(datas))
+				.done(function (datas) {
+					def.resolve(datas);
+				});
 			});
 			if(options.watch && !this.watched[path])
-				fs.watch(path, function (event, filename) {
+				this.watched[path] = fs.watch(path, function (event, filename) {
 					switch(event)
 					{
 						case 'change' :
 							fs.readFile(path, function(err, datas){
 								var d = null;
 								if(err)
-									d = deep.promise.immediate(deep.errors.Watch("Error while reloading file : "+path));
+									d = deep.when(deep.errors.Watch("Error while reloading file : "+path));
 								else
-									d = deep.promise.immediate(self.responseParser(datas));
+									d = deep.when(self.responseParser(datas));
 								deep.mediaCache.manage(d, cacheName);
 							});
 							break;
@@ -86,10 +94,13 @@ define(["require"],function (require)
 			fs.stat(id, function(err, stat){
 				if(!err)
 					return def.reject(deep.errors.Post("file already exists : please put in place of post. path : "+id));
-				fs.writeFile(id, self.bodyParser(content), function (err) {
-					if (err)
-						return def.reject(err);
-					def.resolve(content);
+				deep.when(self.bodyParser(content))
+				.done(function(content){
+					fs.writeFile(id, content, function (err) {
+						if (err)
+							return def.reject(err);
+						def.resolve(content);
+					});
 				});
 			});
 			return def.promise();
@@ -107,10 +118,13 @@ define(["require"],function (require)
 			fs.stat(id, function(err, stat){
 				if(err)
 					return def.reject(deep.errors.Put("file doesn't exists : please post in place of put. path : "+id));
-				fs.writeFile(id, self.bodyParser(content), function (err) {
-					if (err)
-						return def.reject(err);
-					def.resolve(content);
+				deep.when(self.bodyParser(content))
+				.done(function(content){
+					fs.writeFile(id, content, function (err) {
+						if (err)
+							return def.reject(err);
+						def.resolve(content);
+					});
 				});
 			});
 			return def.promise();
@@ -132,10 +146,13 @@ define(["require"],function (require)
 					data = data.toString("utf8");
 				data = JSON.parse(data);
 				deep.utils.up(content, data);
-				fs.writeFile(id, self.bodyParser(data), function (err) {
-					if (err)
-						return def.reject(err);
-					def.resolve(content);
+				deep.when(self.bodyParser(data))
+				.done(function(data){
+					fs.writeFile(id, self.bodyParser(data), function (err) {
+						if (err)
+							return def.reject(err);
+						def.resolve(data);
+					});
 				});
 			});
 			return def.promise();
